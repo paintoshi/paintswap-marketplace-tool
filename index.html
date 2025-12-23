@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paintswap Marketplace Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .wallet-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .connected-address {
+            color: #28a745;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .listings-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .listing-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .listing-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .listing-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .listing-item button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+        }
+        
+        .batch-actions {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-right: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        
+        button:disabled .spinner {
+            border-top-color: currentColor;
+            border-right-color: currentColor;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 30px;
+            background: #e0e0e0;
+            color: #666;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .tab-button:hover {
+            background: #d0d0d0;
+            transform: translateY(-1px);
+        }
+        
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Paintswap Marketplace Tool</h1>
+        <p style="color: #666; text-align: center;">Used to cancel listings and offers on the Paintswap marketplace. It is a single standalone HTML page that does not require any server-side code.</p>
+        <p style="color: #666; margin-bottom: 20px; text-align: center;">It uses your own Etherscan API key to fetch and is not shared or stored anywhere.</p>
+        
+        <div class="section">
+            <div class="wallet-section">
+                <button id="connectWallet">Connect Wallet</button>
+                <span id="walletStatus" class="connected-address">Not connected</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Etherscan API Key</h2>
+            <input type="text" id="etherscanApiKey" placeholder="Enter your Etherscan API Key">
+            <small style="color: #666; display: block; margin-bottom: 10px;">
+                You can get a free one at <a href="https://etherscan.io/apis" target="_blank">https://etherscan.io/apis</a>
+            </small>
+        </div>
+
+        <div class="section">
+            <div class="tabs">
+                <button class="tab-button active" data-tab="listings">Listings</button>
+                <button class="tab-button" data-tab="offers">Offers</button>
+            </div>
+            
+            <div id="listings-tab" class="tab-content active">
+                <button id="fetchListings">Fetch All Listings</button>
+                <div id="fetchStatus"></div>
+                <div style="margin-top: 20px;">
+                    <p style="color: #666;">Some listings may appear even if sold or cancelled due to only expiry date can be checked. Transaction will fail for those.</p>
+                    <div id="listingsContainer" class="listings-container"></div>
+                    <div class="batch-actions">
+                        <button id="cancelSelected">Cancel Selected Listings</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="offers-tab" class="tab-content">
+                <button id="fetchOffers">Fetch All Offers</button>
+                <div id="fetchOffersStatus"></div>
+                <div style="margin-top: 20px;">
+                    <p style="color: #666;">Some offers may appear even if accepted or cancelled due to only expiry date can be checked. Transaction will fail for those.</p>
+                    <div id="offersContainer" class="listings-container"></div>
+                    <div class="batch-actions">
+                        <button id="cancelSelectedOffers">Cancel Selected Offers</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for ethers to load
+        if (typeof ethers === 'undefined') {
+            document.body.innerHTML = '<div style="padding: 40px; text-align: center; color: white; font-size: 18px;">Error: Failed to load ethers.js library. Please check your internet connection and refresh the page.</div>';
+            throw new Error('ethers.js library not loaded');
+        }
+        
+        // Contract configuration
+        const MARKETPLACE_ADDRESS = '0x0c558365eeff4b057fdbed91bc3650e1a00018b4';
+        const SONIC_CHAIN_ID = 146;
+        const SONIC_RPC = 'https://rpc.soniclabs.com';
+        
+        // Contract ABI (only functions we need)
+        const MARKETPLACE_ABI = [
+            {
+                "inputs": [{"internalType": "uint256", "name": "marketplaceId", "type": "uint256"}],
+                "name": "cancelListing",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256[]", "name": "marketplaceIds", "type": "uint256[]"}],
+                "name": "cancelListingBatch",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256", "name": "cancelOfferId", "type": "uint256"}],
+                "name": "cancelOffer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256[]", "name": "cancelOfferIds", "type": "uint256[]"}],
+                "name": "cancelOfferBatch",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": false, "internalType": "uint256", "name": "marketplaceId", "type": "uint256"}, // First parameter in data
+                    {"components": [
+                        {"internalType": "address", "name": "nft", "type": "address"},
+                        {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                        {"internalType": "uint96", "name": "price", "type": "uint96"},
+                        {"internalType": "uint40", "name": "duration", "type": "uint40"},
+                        {"internalType": "uint40", "name": "amount", "type": "uint40"},
+                        {"internalType": "bool", "name": "isUsingVault", "type": "bool"},
+                        {"internalType": "bool", "name": "isAuction", "type": "bool"},
+                        {"internalType": "bool", "name": "isAntisnipe", "type": "bool"},
+                        {"internalType": "bool", "name": "isFlashAuction", "type": "bool"},
+                        {"internalType": "bool", "name": "isNSFW", "type": "bool"},
+                        {"internalType": "string", "name": "searchKeywords", "type": "string"},
+                        {"internalType": "address", "name": "donationAddress", "type": "address"},
+                        {"internalType": "uint16", "name": "donationPercent", "type": "uint16"}
+                    ], "indexed": false, "internalType": "struct Listing", "name": "listing", "type": "tuple"},
+                    {"indexed": false, "internalType": "address", "name": "seller", "type": "address"}
+                ],
+                "name": "NewListing",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": false, "internalType": "uint256", "name": "offerId", "type": "uint256"},
+                    {"indexed": false, "internalType": "uint256", "name": "marketplaceId", "type": "uint256"},
+                    {"indexed": false, "internalType": "address", "name": "nft", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                    {"indexed": false, "internalType": "address", "name": "from", "type": "address"},
+                    {"indexed": false, "internalType": "uint40", "name": "quantity", "type": "uint40"},
+                    {"indexed": false, "internalType": "uint96", "name": "price", "type": "uint96"},
+                    {"indexed": false, "internalType": "uint256", "name": "expires", "type": "uint256"},
+                    {"indexed": false, "internalType": "string", "name": "searchKeywords", "type": "string"}
+                ],
+                "name": "NewOffer",
+                "type": "event"
+            }
+        ];
+        
+        let provider = null;
+        let signer = null;
+        let contract = null;
+        let userAddress = null;
+        let allListings = [];
+        let allOffers = [];
+        let currentTab = 'listings';
+        
+        // Connect wallet
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            if (typeof window.ethereum === 'undefined') {
+                alert('Please install MetaMask or another Web3 wallet!');
+                return;
+            }
+            
+            try {
+                // Request account access
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // Check if we're on Sonic network
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const chainIdDecimal = parseInt(chainId, 16);
+                
+                if (chainIdDecimal !== SONIC_CHAIN_ID) {
+                    try {
+                        // Try to switch to Sonic network
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: `0x${SONIC_CHAIN_ID.toString(16)}` }],
+                        });
+                    } catch (switchError) {
+                        // If network doesn't exist, add it
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: `0x${SONIC_CHAIN_ID.toString(16)}`,
+                                    chainName: 'Sonic',
+                                    nativeCurrency: {
+                                        name: 'Sonic',
+                                        symbol: 'S',
+                                        decimals: 18,
+                                    },
+                                    rpcUrls: [SONIC_RPC],
+                                    blockExplorerUrls: ['https://sonicscan.org/'],
+                                }],
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
+                
+                document.getElementById('walletStatus').textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+                document.getElementById('walletStatus').classList.add('connected-address');
+                
+                // Listen for account changes
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts.length === 0) {
+                        userAddress = null;
+                        document.getElementById('walletStatus').textContent = 'Not connected';
+                        document.getElementById('walletStatus').classList.remove('connected-address');
+                    } else {
+                        location.reload();
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                alert('Failed to connect wallet: ' + error.message);
+            }
+        });
+        
+        // Tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                
+                // Update active tab button
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                button.classList.add('active');
+                
+                // Update active tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+                
+                currentTab = tabName;
+            });
+        });
+        
+        // Fetch listings
+        document.getElementById('fetchListings').addEventListener('click', async () => {
+            const apiKey = document.getElementById('etherscanApiKey').value.trim();
+            if (!apiKey) {
+                alert('Please enter your Etherscan API key');
+                return;
+            }
+            
+            if (!userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const fetchBtn = document.getElementById('fetchListings');
+            const originalText = fetchBtn.textContent;
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<span class="spinner"></span>Fetching...';
+            
+            const statusDiv = document.getElementById('fetchStatus');
+            statusDiv.innerHTML = '<div class="status info">Fetching listings for your address...</div>';
+            
+            // Clear previous listings
+            allListings = [];
+            document.getElementById('listingsContainer').innerHTML = '';
+            updateCancelSelectedButton();
+            
+            try {
+                await fetchAllListings(apiKey, userAddress);
+                displayListings();
+                statusDiv.innerHTML = `<div class="status success">Found ${allListings.length} listings (including expired)</div>`;
+            } catch (error) {
+                console.error('Error fetching listings:', error);
+                statusDiv.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = originalText;
+            }
+        });
+        
+        // Fetch offers
+        document.getElementById('fetchOffers').addEventListener('click', async () => {
+            const apiKey = document.getElementById('etherscanApiKey').value.trim();
+            if (!apiKey) {
+                alert('Please enter your Etherscan API key');
+                return;
+            }
+            
+            if (!userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const fetchBtn = document.getElementById('fetchOffers');
+            const originalText = fetchBtn.textContent;
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<span class="spinner"></span>Fetching...';
+            
+            const statusDiv = document.getElementById('fetchOffersStatus');
+            statusDiv.innerHTML = '<div class="status info">Fetching offers for your address...</div>';
+            
+            // Clear previous offers
+            allOffers = [];
+            document.getElementById('offersContainer').innerHTML = '';
+            updateCancelSelectedOffersButton();
+            
+            try {
+                await fetchAllOffers(apiKey, userAddress);
+                displayOffers();
+                statusDiv.innerHTML = `<div class="status success">Found ${allOffers.length} offers (including expired)</div>`;
+            } catch (error) {
+                console.error('Error fetching offers:', error);
+                statusDiv.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = originalText;
+            }
+        });
+        
+        // Helper function to delay requests (rate limiting)
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        
+        // Fetch all listings for a specific seller using transaction list API
+        // This filters by account at the API level - much more efficient!
+        async function fetchAllListings(apiKey, sellerAddress) {
+            const offset = 100;
+            
+            // Method signature for addListing function (first 4 bytes of keccak256)
+            const addListingMethodId = '0xeefb986c';
+            const addListingBatchMethodId = '0x7f9e5134';
+            
+            // NewListing event topic for decoding logs
+            const topic0 = '0x217bd5b40e04ee284d8ebf246fe31b6cf1b5aa0fc343ce0ef5325ee90ef40bea';
+            
+            // Determine which API endpoint to use
+            let apiBaseUrl = 'https://api.sonicscan.org/api';
+            let useEtherscanV2 = false;
+            
+            // Test which API works - try to get transactions for the seller
+            console.log('[Test] Testing API endpoints...');
+            let testUrl = `${apiBaseUrl}?module=account&action=txlist&address=${sellerAddress}&page=1&offset=1${apiKey ? '&apikey=' + apiKey : ''}`;
+            let testResponse = await fetch(testUrl);
+            let testData = await testResponse.json();
+            console.log('[Test] Sonicscan response:', testData.status, testData.message);
+            
+            if (testData.status !== '1' && apiKey) {
+                // Try Etherscan API v2 format
+                testUrl = `https://api.etherscan.io/v2/api?chainid=${SONIC_CHAIN_ID}&module=account&action=txlist&address=${sellerAddress}&page=1&offset=1&apikey=${apiKey}`;
+                console.log('[Test] Trying Etherscan v2...');
+                testResponse = await fetch(testUrl);
+                testData = await testResponse.json();
+                console.log('[Test] Etherscan v2 response:', testData.status, testData.message);
+                
+                if (testData.status === '1') {
+                    apiBaseUrl = 'https://api.etherscan.io/v2/api';
+                    useEtherscanV2 = true;
+                }
+            }
+            
+            console.log('[Config] Using API:', apiBaseUrl, 'v2:', useEtherscanV2);
+            
+            // Fetch transactions for the seller's address
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                // Rate limiting
+                if (page > 1) {
+                    await delay(400);
+                }
+                
+                // Build URL - get transactions FROM the seller address
+                let url;
+                if (useEtherscanV2) {
+                    url = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=account&action=txlist&address=${sellerAddress}&page=${page}&offset=${offset}&sort=desc&apikey=${apiKey}`;
+                } else {
+                    url = `${apiBaseUrl}?module=account&action=txlist&address=${sellerAddress}&page=${page}&offset=${offset}&sort=desc${apiKey ? '&apikey=' + apiKey : ''}`;
+                }
+                
+                console.log(`[Fetch ${page}] Requesting transactions:`, url);
+                const response = await fetch(url);
+                const data = await response.json();
+                console.log(`[Fetch ${page}] Response:`, data.status, 'Transactions:', data.result?.length || 0);
+                
+                // Handle rate limit errors
+                if (data.status === '0' && data.result && data.result.includes('rate limit')) {
+                    console.log('[Rate limit] Waiting 2s and retrying...');
+                    await delay(2000);
+                    continue;
+                }
+                
+                if (data.status !== '1') {
+                    if (data.message === 'No transactions found' || data.message === 'No records found') {
+                        console.log(`[Fetch ${page}] No more transactions`);
+                        break;
+                    }
+                    throw new Error(`API Error: ${data.message || data.result}`);
+                }
+                
+                if (!data.result || data.result.length === 0) {
+                    console.log(`[Fetch ${page}] Empty results, done`);
+                    break;
+                }
+                
+                // Filter transactions:
+                // 1. Must be TO the marketplace contract
+                // 2. Must have addListing method signature
+                // 3. Must be successful (isError === '0')
+                let pageListings = 0;
+                
+                for (const tx of data.result) {
+                    // Check if transaction is to the marketplace contract
+                    if (!tx.to || tx.to.toLowerCase() !== MARKETPLACE_ADDRESS.toLowerCase()) {
+                        continue;
+                    }
+                    
+                    // Check if transaction was successful
+                    if (tx.isError !== '0') {
+                        continue;
+                    }
+                    
+                    // Check if it's an addListing transaction (check method ID)
+                    const methodId = tx.input.substring(0, 10).toLowerCase();
+                    const isAddListing = methodId === addListingMethodId || 
+                                         methodId === addListingBatchMethodId;
+                    
+                    if (!isAddListing) {
+                        continue;
+                    }
+                    
+                    console.log(`[Fetch ${page}] Found addListing tx: ${tx.hash}`);
+                    
+                    // Get the transaction receipt to extract marketplaceId from logs
+                    await delay(200); // Small delay to avoid rate limit
+                    
+                    let receiptUrl;
+                    if (useEtherscanV2) {
+                        receiptUrl = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=proxy&action=eth_getTransactionReceipt&txhash=${tx.hash}&apikey=${apiKey}`;
+                    } else {
+                        receiptUrl = `${apiBaseUrl}?module=proxy&action=eth_getTransactionReceipt&txhash=${tx.hash}${apiKey ? '&apikey=' + apiKey : ''}`;
+                    }
+                    
+                    console.log(`[Receipt] Fetching: ${tx.hash}`);
+                    let receiptData = null;
+                    let retryCount = 0;
+                    const maxRetries = 2;
+                    
+                    // Retry logic for incomplete receipts (API reliability issue)
+                    while (retryCount <= maxRetries) {
+                        const receiptResponse = await fetch(receiptUrl);
+                        receiptData = await receiptResponse.json();
+                        
+                        // Check if we got valid data with logs
+                        if (receiptData.result && receiptData.result.logs) {
+                            break; // Success!
+                        }
+                        
+                        // If first attempt failed, retry
+                        if (retryCount < maxRetries) {
+                            console.warn(`[Receipt] ${tx.hash} - Incomplete data on attempt ${retryCount + 1}, retrying...`);
+                            await delay(500); // Wait a bit before retry
+                            retryCount++;
+                        } else {
+                            break; // Max retries reached
+                        }
+                    }
+                    
+                    console.log(`[Receipt] ${tx.hash} - has result:`, !!receiptData.result, 'logs:', receiptData.result?.logs?.length || 0);
+                    if (!receiptData.result) {
+                        console.error(`[Receipt] ${tx.hash} - No result after ${retryCount + 1} attempts!`);
+                    }
+                    
+                    if (receiptData.result && receiptData.result.logs) {
+                        const iface = new ethers.utils.Interface(MARKETPLACE_ABI);
+                        
+                        for (const log of receiptData.result.logs) {
+                            // Check if this is a NewListing event
+                            if (log.topics && log.topics[0] && log.topics[0].toLowerCase() === topic0.toLowerCase()) {
+                                try {
+                                    const decoded = iface.decodeEventLog('NewListing', log.data, log.topics);
+                                    const marketplaceId = decoded.marketplaceId.toString();
+                                    
+                                    // Verify seller matches
+                                    if (decoded.seller.toLowerCase() !== sellerAddress.toLowerCase()) {
+                                        continue;
+                                    }
+                                    
+                                    const blockNumber = parseInt(tx.blockNumber);
+                                    const duration = parseInt(decoded.listing.duration.toString());
+                                    
+                                    // Get timestamp - Etherscan API v2 uses 'timeStamp' field
+                                    let timestamp = null;
+                                    
+                                    // Log all available fields to see what we have
+                                    console.log(`[DEBUG] TX fields for listing ${marketplaceId}:`, Object.keys(tx));
+                                    console.log(`[DEBUG] tx.timeStamp =`, tx.timeStamp, typeof tx.timeStamp);
+                                    console.log(`[DEBUG] tx.timestamp =`, tx.timestamp, typeof tx.timestamp);
+                                    
+                                    // Try different possible field names
+                                    if (tx.timeStamp !== undefined && tx.timeStamp !== null) {
+                                        timestamp = parseInt(tx.timeStamp);
+                                        console.log(`[DEBUG] ✓ Using tx.timeStamp: ${timestamp}`);
+                                    } else if (tx.timestamp !== undefined && tx.timestamp !== null) {
+                                        timestamp = parseInt(tx.timestamp);
+                                        console.log(`[DEBUG] ✓ Using tx.timestamp: ${timestamp}`);
+                                    } else {
+                                        console.log(`[DEBUG] ✗ No timestamp in TX, fetching block ${blockNumber}`);
+                                        // Fallback: fetch block timestamp
+                                        try {
+                                            await delay(100); // Small delay to avoid rate limit
+                                            let blockUrl;
+                                            if (useEtherscanV2) {
+                                                blockUrl = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=proxy&action=eth_getBlockByNumber&tag=0x${blockNumber.toString(16)}&boolean=true&apikey=${apiKey}`;
+                                            } else {
+                                                blockUrl = `${apiBaseUrl}?module=proxy&action=eth_getBlockByNumber&tag=0x${blockNumber.toString(16)}&boolean=true${apiKey ? '&apikey=' + apiKey : ''}`;
+                                            }
+                                            const blockResponse = await fetch(blockUrl);
+                                            const blockData = await blockResponse.json();
+                                            console.log(`[DEBUG] Block API response:`, blockData);
+                                            if (blockData.result && blockData.result.timestamp) {
+                                                timestamp = parseInt(blockData.result.timestamp, 16);
+                                                console.log(`[DEBUG] ✓ Fetched block timestamp: ${timestamp}`);
+                                            } else {
+                                                console.log(`[DEBUG] ✗ Block timestamp not found in response`);
+                                            }
+                                        } catch (e) {
+                                            console.error(`[DEBUG] ✗ Failed to fetch block timestamp:`, e);
+                                        }
+                                    }
+                                    
+                                    console.log(`[DEBUG] Final timestamp for ${marketplaceId}:`, timestamp);
+                                    
+                                    // Avoid duplicates
+                                    if (!allListings.find(l => l.id === marketplaceId)) {
+                                        const listingData = {
+                                            id: marketplaceId,
+                                            blockNumber: blockNumber,
+                                            transactionHash: tx.hash,
+                                            seller: decoded.seller,
+                                            duration: duration,
+                                            timestamp: timestamp
+                                        };
+                                        allListings.push(listingData);
+                                        pageListings++;
+                                        
+                                        const currentTime = Math.floor(Date.now() / 1000);
+                                        const expirationTime = timestamp ? timestamp + duration : null;
+                                        const isExpired = timestamp ? (currentTime > expirationTime) : 'unknown';
+                                        
+                                        // Detailed logging
+                                        console.log(`[FOUND] Listing ${marketplaceId}:`);
+                                        console.log(`  - Duration: ${duration}s (${Math.floor(duration / 86400)} days)`);
+                                        console.log(`  - Timestamp: ${timestamp || 'MISSING'}`);
+                                        if (timestamp) {
+                                            console.log(`  - Created: ${new Date(timestamp * 1000).toISOString()}`);
+                                            console.log(`  - Expires: ${new Date(expirationTime * 1000).toISOString()}`);
+                                            console.log(`  - Current: ${new Date(currentTime * 1000).toISOString()}`);
+                                            console.log(`  - Is Expired: ${isExpired}`);
+                                            console.log(`  - Time Remaining: ${Math.floor((expirationTime - currentTime) / 86400)} days`);
+                                        } else {
+                                            console.log(`  - ⚠️  Cannot determine expiration (no timestamp)`);
+                                        }
+                                        
+                                        // Update display in real-time
+                                        displayListings();
+                                        
+                                        // Update status
+                                        const statusDiv = document.getElementById('fetchStatus');
+                                        if (statusDiv) {
+                                            statusDiv.innerHTML = `<div class="status info">Found ${allListings.length} listings so far...</div>`;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('[Decode] Failed to decode log:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`[Fetch ${page}] Found ${pageListings} listings from ${data.result.length} transactions`);
+                
+                // Sort by ID (latest first)
+                allListings.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+                
+                // Check if we've reached the end
+                if (data.result.length < offset) {
+                    console.log(`[Fetch ${page}] Reached end of transactions`);
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            }
+            
+            console.log(`[Complete] Finished. Total listings found: ${allListings.length}`);
+        }
+        
+        // Fetch all offers for a specific user
+        async function fetchAllOffers(apiKey, userAddress) {
+            const offset = 100;
+            
+            // NewOffer event topic
+            const newOfferTopic = '0x51ddc3ce4e6137c19b8b4521871ae05623a9c72df697faf2fdfd1b1a639170b3';
+            
+            // Determine which API endpoint to use
+            let apiBaseUrl = 'https://api.sonicscan.org/api';
+            let useEtherscanV2 = false;
+            
+            // Test which API works
+            console.log('[Test] Testing API endpoints...');
+            let testUrl = `${apiBaseUrl}?module=account&action=txlist&address=${userAddress}&page=1&offset=1${apiKey ? '&apikey=' + apiKey : ''}`;
+            let testResponse = await fetch(testUrl);
+            let testData = await testResponse.json();
+            console.log('[Test] Sonicscan response:', testData.status, testData.message);
+            
+            if (testData.status !== '1' && apiKey) {
+                // Try Etherscan API v2 format
+                testUrl = `https://api.etherscan.io/v2/api?chainid=${SONIC_CHAIN_ID}&module=account&action=txlist&address=${userAddress}&page=1&offset=1&apikey=${apiKey}`;
+                console.log('[Test] Trying Etherscan v2...');
+                testResponse = await fetch(testUrl);
+                testData = await testResponse.json();
+                console.log('[Test] Etherscan v2 response:', testData.status, testData.message);
+                
+                if (testData.status === '1') {
+                    apiBaseUrl = 'https://api.etherscan.io/v2/api';
+                    useEtherscanV2 = true;
+                }
+            }
+            
+            console.log('[Config] Using API:', apiBaseUrl, 'v2:', useEtherscanV2);
+            
+            // Fetch transactions for the user's address
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                // Rate limiting
+                if (page > 1) {
+                    await delay(400);
+                }
+                
+                // Build URL - get transactions FROM the user address
+                let url;
+                if (useEtherscanV2) {
+                    url = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=account&action=txlist&address=${userAddress}&page=${page}&offset=${offset}&sort=desc&apikey=${apiKey}`;
+                } else {
+                    url = `${apiBaseUrl}?module=account&action=txlist&address=${userAddress}&page=${page}&offset=${offset}&sort=desc${apiKey ? '&apikey=' + apiKey : ''}`;
+                }
+                
+                console.log(`[Fetch ${page}] Requesting transactions:`, url);
+                const response = await fetch(url);
+                const data = await response.json();
+                console.log(`[Fetch ${page}] Response:`, data.status, 'Transactions:', data.result?.length || 0);
+                
+                // Handle rate limit errors
+                if (data.status === '0' && data.result && data.result.includes('rate limit')) {
+                    console.log('[Rate limit] Waiting 2s and retrying...');
+                    await delay(2000);
+                    continue;
+                }
+                
+                if (data.status !== '1') {
+                    if (data.message === 'No transactions found' || data.message === 'No records found') {
+                        console.log(`[Fetch ${page}] No more transactions`);
+                        break;
+                    }
+                    throw new Error(`API Error: ${data.message || data.result}`);
+                }
+                
+                if (!data.result || data.result.length === 0) {
+                    console.log(`[Fetch ${page}] Empty results, done`);
+                    break;
+                }
+                
+                // Filter transactions for makeOffer calls
+                let pageOffers = 0;
+                
+                for (const tx of data.result) {
+                    // Check if transaction is to the marketplace contract
+                    if (!tx.to || tx.to.toLowerCase() !== MARKETPLACE_ADDRESS.toLowerCase()) {
+                        continue;
+                    }
+                    
+                    // Check if transaction was successful
+                    if (tx.isError !== '0') {
+                        console.log(`[Skip] ${tx.hash} - failed transaction`);
+                        continue;
+                    }
+                    
+                    console.log(`[Fetch ${page}] Checking tx: ${tx.hash}`);
+                    
+                    // Get the transaction receipt to extract offerId from logs
+                    await delay(200); // Small delay to avoid rate limit
+                    
+                    let receiptUrl;
+                    if (useEtherscanV2) {
+                        receiptUrl = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=proxy&action=eth_getTransactionReceipt&txhash=${tx.hash}&apikey=${apiKey}`;
+                    } else {
+                        receiptUrl = `${apiBaseUrl}?module=proxy&action=eth_getTransactionReceipt&txhash=${tx.hash}${apiKey ? '&apikey=' + apiKey : ''}`;
+                    }
+                    
+                    console.log(`[Receipt] Fetching: ${tx.hash}`);
+                    let receiptData = null;
+                    let retryCount = 0;
+                    const maxRetries = 2;
+                    
+                    // Retry logic for incomplete receipts (API reliability issue)
+                    while (retryCount <= maxRetries) {
+                        const receiptResponse = await fetch(receiptUrl);
+                        receiptData = await receiptResponse.json();
+                        
+                        // Check if we got valid data with logs
+                        if (receiptData.result && receiptData.result.logs) {
+                            break; // Success!
+                        }
+                        
+                        // If first attempt failed, retry
+                        if (retryCount < maxRetries) {
+                            console.warn(`[Receipt] ${tx.hash} - Incomplete data on attempt ${retryCount + 1}, retrying...`);
+                            await delay(500); // Wait a bit before retry
+                            retryCount++;
+                        } else {
+                            break; // Max retries reached
+                        }
+                    }
+                    
+                    console.log(`[Receipt] ${tx.hash} - status:`, receiptData.status, 'message:', receiptData.message, 'has result:', !!receiptData.result);
+                    if (receiptData.result) {
+                        console.log(`[Receipt] ${tx.hash} - has logs:`, !!receiptData.result.logs, 'log count:', receiptData.result.logs?.length || 0);
+                    } else {
+                        console.error(`[Receipt] ${tx.hash} - No result after ${retryCount + 1} attempts! Full response:`, receiptData);
+                    }
+                    
+                    if (receiptData.result && receiptData.result.logs) {
+                        const iface = new ethers.utils.Interface(MARKETPLACE_ABI);
+                        
+                        console.log(`[Receipt] ${tx.hash} has ${receiptData.result.logs.length} logs`);
+                        
+                        for (const log of receiptData.result.logs) {
+                            // Log all event topics for debugging
+                            if (log.topics && log.topics[0]) {
+                                console.log(`[Log] Topic0: ${log.topics[0].toLowerCase()}`);
+                            }
+                            
+                            // Check if this is a NewOffer event
+                            if (log.topics && log.topics[0] && log.topics[0].toLowerCase() === newOfferTopic.toLowerCase()) {
+                                console.log(`[Match] Found NewOffer event in tx ${tx.hash}`);
+                                try {
+                                    const decoded = iface.decodeEventLog('NewOffer', log.data, log.topics);
+                                    const offerId = decoded.offerId.toString();
+                                    
+                                    console.log(`[Decoded] Offer ${offerId} from: ${decoded.from}, expected: ${userAddress}`);
+                                    
+                                    // Verify offer is from this user
+                                    if (decoded.from.toLowerCase() !== userAddress.toLowerCase()) {
+                                        console.log(`[Skip] Offer ${offerId} - not from connected user`);
+                                        continue;
+                                    }
+                                    
+                                    const expires = parseInt(decoded.expires.toString());
+                                    
+                                    // Avoid duplicates
+                                    if (!allOffers.find(o => o.id === offerId)) {
+                                        const offerData = {
+                                            id: offerId,
+                                            transactionHash: tx.hash,
+                                            from: decoded.from,
+                                            expires: expires
+                                        };
+                                        allOffers.push(offerData);
+                                        pageOffers++;
+                                        
+                                        const currentTime = Math.floor(Date.now() / 1000);
+                                        const isExpired = currentTime > expires;
+                                        
+                                        // Detailed logging
+                                        console.log(`[FOUND] Offer ${offerId}:`);
+                                        console.log(`  - Expires: ${expires} (${new Date(expires * 1000).toISOString()})`);
+                                        console.log(`  - Current: ${currentTime} (${new Date(currentTime * 1000).toISOString()})`);
+                                        console.log(`  - Is Expired: ${isExpired}`);
+                                        
+                                        // Update display in real-time
+                                        displayOffers();
+                                        
+                                        // Update status
+                                        const statusDiv = document.getElementById('fetchOffersStatus');
+                                        if (statusDiv) {
+                                            statusDiv.innerHTML = `<div class="status info">Found ${allOffers.length} offers so far...</div>`;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('[Decode] Failed to decode NewOffer log from tx', tx.hash, ':', e);
+                                    console.error('[Decode] Log data:', log.data);
+                                    console.error('[Decode] Log topics:', log.topics);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`[Fetch ${page}] Found ${pageOffers} offers from ${data.result.length} transactions`);
+                
+                // Sort by ID (latest first)
+                allOffers.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+                
+                // Check if we've reached the end
+                if (data.result.length < offset) {
+                    console.log(`[Fetch ${page}] Reached end of transactions`);
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            }
+            
+            console.log(`[Complete] Finished. Total offers found: ${allOffers.length}`);
+        }
+        
+        // Update Cancel Selected button state
+        function updateCancelSelectedButton() {
+            const checkboxes = document.querySelectorAll('#listingsContainer input[type="checkbox"]:checked');
+            const cancelSelectedBtn = document.getElementById('cancelSelected');
+            cancelSelectedBtn.disabled = checkboxes.length === 0;
+        }
+        
+        // Update Cancel Selected Offers button state
+        function updateCancelSelectedOffersButton() {
+            const checkboxes = document.querySelectorAll('#offersContainer input[type="checkbox"]:checked');
+            const cancelSelectedBtn = document.getElementById('cancelSelectedOffers');
+            cancelSelectedBtn.disabled = checkboxes.length === 0;
+        }
+        
+        // Initialize button state
+        updateCancelSelectedButton();
+        updateCancelSelectedOffersButton();
+        
+        // Check if listing is expired
+        function isListingExpired(listing) {
+            console.log(`[EXPIRATION CHECK] Listing ${listing.id}:`);
+            console.log(`  - Has timestamp: ${!!listing.timestamp} (value: ${listing.timestamp})`);
+            console.log(`  - Has duration: ${!!listing.duration} (value: ${listing.duration})`);
+            
+            if (!listing.timestamp || !listing.duration) {
+                console.log(`  - ⚠️  Missing data, showing anyway`);
+                return false; // Can't determine, show it anyway
+            }
+            
+            const listingTimestamp = parseInt(listing.timestamp);
+            const duration = parseInt(listing.duration);
+            const expirationTime = listingTimestamp + duration;
+            const currentTime = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds
+            
+            const isExpired = currentTime > expirationTime;
+            
+            console.log(`  - Created: ${new Date(listingTimestamp * 1000).toISOString()}`);
+            console.log(`  - Duration: ${duration}s`);
+            console.log(`  - Expires: ${new Date(expirationTime * 1000).toISOString()}`);
+            console.log(`  - Current: ${new Date(currentTime * 1000).toISOString()}`);
+            console.log(`  - Result: ${isExpired ? 'EXPIRED ❌' : 'ACTIVE ✓'}`);
+            
+            return isExpired;
+        }
+        
+        // Check if offer is expired
+        function isOfferExpired(offer) {
+            console.log(`[EXPIRATION CHECK] Offer ${offer.id}:`);
+            console.log(`  - Has expires: ${!!offer.expires} (value: ${offer.expires})`);
+            
+            if (!offer.expires) {
+                console.log(`  - ⚠️  Missing data, showing anyway`);
+                return false; // Can't determine, show it anyway
+            }
+            
+            const expirationTime = parseInt(offer.expires);
+            const currentTime = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds
+            
+            const isExpired = currentTime > expirationTime;
+            
+            console.log(`  - Expires: ${new Date(expirationTime * 1000).toISOString()}`);
+            console.log(`  - Current: ${new Date(currentTime * 1000).toISOString()}`);
+            console.log(`  - Result: ${isExpired ? 'EXPIRED ❌' : 'ACTIVE ✓'}`);
+            
+            return isExpired;
+        }
+        
+        // Pagination state (global scope)
+        let currentPage = 1;
+        const listingsPerPage = 50; // Show 50 listings per page
+        
+        // Display listings with pagination
+        function displayListings() {
+            const container = document.getElementById('listingsContainer');
+            container.innerHTML = '';
+            
+            if (allListings.length === 0) {
+                container.innerHTML = '<div class="status info">No listings found</div>';
+                updateCancelSelectedButton();
+                return;
+            }
+            
+            // Filter out expired listings
+            console.log(`[DISPLAY] Checking ${allListings.length} listings for expiration...`);
+            if (allListings.length <= 20) {
+                // Only log details if not too many listings
+                console.log(`[DISPLAY] All listings:`, allListings.map(l => ({ id: l.id, timestamp: l.timestamp, duration: l.duration })));
+            }
+            const activeListings = allListings.filter(listing => {
+                const expired = isListingExpired(listing);
+                if (allListings.length <= 20) {
+                    // Only log details if not too many listings
+                    if (expired) {
+                        console.log(`[DISPLAY] ✗ Filtering out expired listing: ${listing.id}`);
+                    } else {
+                        console.log(`[DISPLAY] ✓ Keeping active listing: ${listing.id}`);
+                    }
+                }
+                return !expired;
+            });
+            const expiredCount = allListings.length - activeListings.length;
+            console.log(`[DISPLAY] Final results: ${activeListings.length} active, ${expiredCount} expired`);
+            
+            // Get parent container to append pagination outside the grid
+            const parentContainer = container.parentElement;
+            
+            // Remove existing pagination if it exists
+            const existingPagination = document.getElementById('paginationControls');
+            if (existingPagination) {
+                existingPagination.remove();
+            }
+            
+            // Show summary at top
+            const summary = document.createElement('div');
+            summary.className = 'status info';
+            summary.style.marginBottom = '15px';
+            summary.innerHTML = `
+                <strong>Total: ${allListings.length} listings</strong> | 
+                Active: ${activeListings.length} | 
+                Expired: ${expiredCount}
+            `;
+            container.appendChild(summary);
+            
+            if (activeListings.length === 0) {
+                container.innerHTML = '<div class="status info">No active listings found</div>';
+                updateCancelSelectedButton();
+                return;
+            }
+            
+            // Pagination: calculate which listings to show
+            const totalPages = Math.ceil(activeListings.length / listingsPerPage);
+            const startIndex = (currentPage - 1) * listingsPerPage;
+            const endIndex = Math.min(startIndex + listingsPerPage, activeListings.length);
+            const paginatedListings = activeListings.slice(startIndex, endIndex);
+            
+            // Display paginated listings directly in container (maintains grid layout)
+            paginatedListings.forEach(listing => {
+                const item = document.createElement('div');
+                item.className = 'listing-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = listing.id;
+                checkbox.id = `checkbox-${listing.id}`;
+                checkbox.addEventListener('change', updateCancelSelectedButton);
+                
+                const button = document.createElement('button');
+                button.textContent = `Cancel ID: ${listing.id}`;
+                button.onclick = () => cancelListing(listing.id);
+                
+                item.appendChild(checkbox);
+                item.appendChild(button);
+                container.appendChild(item);
+            });
+            
+            // Add pagination controls BELOW the listings grid (outside the grid container)
+            if (totalPages > 1) {
+                const paginationDiv = document.createElement('div');
+                paginationDiv.id = 'paginationControls';
+                paginationDiv.style.marginTop = '30px';
+                paginationDiv.style.marginBottom = '20px';
+                paginationDiv.style.textAlign = 'center';
+                paginationDiv.style.display = 'flex';
+                paginationDiv.style.justifyContent = 'center';
+                paginationDiv.style.gap = '10px';
+                paginationDiv.style.alignItems = 'center';
+                
+                const prevButton = document.createElement('button');
+                prevButton.textContent = '← Previous';
+                prevButton.disabled = currentPage === 1;
+                prevButton.onclick = () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        displayListings();
+                    }
+                };
+                
+                const pageInfo = document.createElement('span');
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                pageInfo.style.padding = '0 15px';
+                
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Next →';
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.onclick = () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        displayListings();
+                    }
+                };
+                
+                paginationDiv.appendChild(prevButton);
+                paginationDiv.appendChild(pageInfo);
+                paginationDiv.appendChild(nextButton);
+                
+                // Append to parent container (outside the grid)
+                parentContainer.appendChild(paginationDiv);
+            }
+            
+            updateCancelSelectedButton();
+        }
+        
+        // Pagination state for offers
+        let currentOfferPage = 1;
+        const offersPerPage = 50;
+        
+        // Display offers with pagination
+        function displayOffers() {
+            const container = document.getElementById('offersContainer');
+            container.innerHTML = '';
+            
+            if (allOffers.length === 0) {
+                container.innerHTML = '<div class="status info">No offers found</div>';
+                updateCancelSelectedOffersButton();
+                return;
+            }
+            
+            // Filter out expired offers
+            console.log(`[DISPLAY] Checking ${allOffers.length} offers for expiration...`);
+            const activeOffers = allOffers.filter(offer => {
+                const expired = isOfferExpired(offer);
+                return !expired;
+            });
+            const expiredCount = allOffers.length - activeOffers.length;
+            console.log(`[DISPLAY] Final results: ${activeOffers.length} active, ${expiredCount} expired`);
+            
+            // Get parent container to append pagination outside the grid
+            const parentContainer = container.parentElement;
+            
+            // Remove existing pagination if it exists
+            const existingPagination = document.getElementById('offerPaginationControls');
+            if (existingPagination) {
+                existingPagination.remove();
+            }
+            
+            // Show summary at top
+            const summary = document.createElement('div');
+            summary.className = 'status info';
+            summary.style.marginBottom = '15px';
+            summary.innerHTML = `
+                <strong>Total: ${allOffers.length} offers</strong> | 
+                Active: ${activeOffers.length} | 
+                Expired: ${expiredCount}
+            `;
+            container.appendChild(summary);
+            
+            if (activeOffers.length === 0) {
+                container.innerHTML = '<div class="status info">No active offers found</div>';
+                updateCancelSelectedOffersButton();
+                return;
+            }
+            
+            // Pagination: calculate which offers to show
+            const totalPages = Math.ceil(activeOffers.length / offersPerPage);
+            const startIndex = (currentOfferPage - 1) * offersPerPage;
+            const endIndex = Math.min(startIndex + offersPerPage, activeOffers.length);
+            const paginatedOffers = activeOffers.slice(startIndex, endIndex);
+            
+            // Display paginated offers directly in container (maintains grid layout)
+            paginatedOffers.forEach(offer => {
+                const item = document.createElement('div');
+                item.className = 'listing-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = offer.id;
+                checkbox.id = `checkbox-offer-${offer.id}`;
+                checkbox.addEventListener('change', updateCancelSelectedOffersButton);
+                
+                const button = document.createElement('button');
+                button.textContent = `Cancel ID: ${offer.id}`;
+                button.onclick = () => cancelOffer(offer.id);
+                
+                item.appendChild(checkbox);
+                item.appendChild(button);
+                container.appendChild(item);
+            });
+            
+            // Add pagination controls BELOW the offers grid (outside the grid container)
+            if (totalPages > 1) {
+                const paginationDiv = document.createElement('div');
+                paginationDiv.id = 'offerPaginationControls';
+                paginationDiv.style.marginTop = '30px';
+                paginationDiv.style.marginBottom = '20px';
+                paginationDiv.style.textAlign = 'center';
+                paginationDiv.style.display = 'flex';
+                paginationDiv.style.justifyContent = 'center';
+                paginationDiv.style.gap = '10px';
+                paginationDiv.style.alignItems = 'center';
+                
+                const prevButton = document.createElement('button');
+                prevButton.textContent = '← Previous';
+                prevButton.disabled = currentOfferPage === 1;
+                prevButton.onclick = () => {
+                    if (currentOfferPage > 1) {
+                        currentOfferPage--;
+                        displayOffers();
+                    }
+                };
+                
+                const pageInfo = document.createElement('span');
+                pageInfo.textContent = `Page ${currentOfferPage} of ${totalPages}`;
+                pageInfo.style.padding = '0 15px';
+                
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Next →';
+                nextButton.disabled = currentOfferPage === totalPages;
+                nextButton.onclick = () => {
+                    if (currentOfferPage < totalPages) {
+                        currentOfferPage++;
+                        displayOffers();
+                    }
+                };
+                
+                paginationDiv.appendChild(prevButton);
+                paginationDiv.appendChild(pageInfo);
+                paginationDiv.appendChild(nextButton);
+                
+                // Append to parent container (outside the grid)
+                parentContainer.appendChild(paginationDiv);
+            }
+            
+            updateCancelSelectedOffersButton();
+        }
+        
+        // Cancel single listing
+        async function cancelListing(marketplaceId) {
+            if (!contract || !userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to cancel listing ${marketplaceId}?`)) {
+                return;
+            }
+            
+            try {
+                const tx = await contract.cancelListing(marketplaceId);
+                alert(`Transaction sent! Hash: ${tx.hash}`);
+                
+                const receipt = await tx.wait();
+                alert(`Listing ${marketplaceId} cancelled successfully!`);
+                
+                // Remove from list
+                allListings = allListings.filter(l => l.id !== marketplaceId);
+                displayListings();
+            } catch (error) {
+                console.error('Error cancelling listing:', error);
+                if (error.code === 4001) {
+                    alert('Transaction cancelled by user');
+                } else {
+                    alert('Error cancelling listing: ' + error.message);
+                }
+            }
+        }
+        
+        // Cancel selected listings
+        document.getElementById('cancelSelected').addEventListener('click', async () => {
+            if (!contract || !userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const checkboxes = document.querySelectorAll('#listingsContainer input[type="checkbox"]:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedIds.length === 0) {
+                alert('Please select at least one listing to cancel');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to cancel ${selectedIds.length} listing(s)?`)) {
+                return;
+            }
+            
+            try {
+                // Convert to BigNumber array
+                const ids = selectedIds.map(id => ethers.BigNumber.from(id));
+                
+                const tx = await contract.cancelListingBatch(ids);
+                alert(`Transaction sent! Hash: ${tx.hash}`);
+                
+                const receipt = await tx.wait();
+                alert(`${selectedIds.length} listing(s) cancelled successfully!`);
+                
+                // Remove from list
+                selectedIds.forEach(id => {
+                    allListings = allListings.filter(l => l.id !== id);
+                });
+                displayListings();
+            } catch (error) {
+                console.error('Error cancelling listings:', error);
+                if (error.code === 4001) {
+                    alert('Transaction cancelled by user');
+                } else {
+                    alert('Error cancelling listings: ' + error.message);
+                }
+            }
+        });
+        
+        // Cancel single offer
+        async function cancelOffer(offerId) {
+            if (!contract || !userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to cancel offer ${offerId}?`)) {
+                return;
+            }
+            
+            try {
+                const tx = await contract.cancelOffer(offerId);
+                alert(`Transaction sent! Hash: ${tx.hash}`);
+                
+                const receipt = await tx.wait();
+                alert(`Offer ${offerId} cancelled successfully!`);
+                
+                // Remove from list
+                allOffers = allOffers.filter(o => o.id !== offerId);
+                displayOffers();
+            } catch (error) {
+                console.error('Error cancelling offer:', error);
+                if (error.code === 4001) {
+                    alert('Transaction cancelled by user');
+                } else {
+                    alert('Error cancelling offer: ' + error.message);
+                }
+            }
+        }
+        
+        // Cancel selected offers
+        document.getElementById('cancelSelectedOffers').addEventListener('click', async () => {
+            if (!contract || !userAddress) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const checkboxes = document.querySelectorAll('#offersContainer input[type="checkbox"]:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedIds.length === 0) {
+                alert('Please select at least one offer to cancel');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to cancel ${selectedIds.length} offer(s)?`)) {
+                return;
+            }
+            
+            try {
+                // Convert to BigNumber array
+                const ids = selectedIds.map(id => ethers.BigNumber.from(id));
+                
+                const tx = await contract.cancelOfferBatch(ids);
+                alert(`Transaction sent! Hash: ${tx.hash}`);
+                
+                const receipt = await tx.wait();
+                alert(`${selectedIds.length} offer(s) cancelled successfully!`);
+                
+                // Remove from list
+                selectedIds.forEach(id => {
+                    allOffers = allOffers.filter(o => o.id !== id);
+                });
+                displayOffers();
+            } catch (error) {
+                console.error('Error cancelling offers:', error);
+                if (error.code === 4001) {
+                    alert('Transaction cancelled by user');
+                } else {
+                    alert('Error cancelling offers: ' + error.message);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
