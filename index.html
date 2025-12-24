@@ -107,6 +107,7 @@
         
         .listing-item {
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 10px;
             padding: 15px;
@@ -119,6 +120,20 @@
         .listing-item:hover {
             border-color: #667eea;
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .listing-item .date-display {
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+        
+        .listing-item .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
         }
         
         .listing-item input[type="checkbox"] {
@@ -232,6 +247,14 @@
         .tab-content.active {
             display: block;
         }
+        
+        #sonicscanLinks a:hover,
+        #sonicscanOffersLinks a:hover {
+            background: #c8cee7;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -262,6 +285,10 @@
             </div>
             
             <div id="listings-tab" class="tab-content active">
+                <div id="sonicscanLinks" style="margin-bottom: 15px; display: none;">
+                    <a id="sonicscanLink1" href="#" target="_blank" style="display: inline-block; margin-right: 15px; color: #667eea; text-decoration: none; font-size: 14px; padding: 8px 12px; border: 1px solid #667eea; border-radius: 6px; transition: all 0.3s;">Explore Listings</a>
+                    <a id="sonicscanLink2" href="#" target="_blank" style="display: inline-block; color: #667eea; text-decoration: none; font-size: 14px; padding: 8px 12px; border: 1px solid #667eea; border-radius: 6px; transition: all 0.3s;">Explore Batch Listings</a>
+                </div>
                 <button id="fetchListings">Fetch All Listings</button>
                 <div id="fetchStatus"></div>
                 <div style="margin-top: 20px;">
@@ -274,6 +301,10 @@
             </div>
             
             <div id="offers-tab" class="tab-content">
+                <div id="sonicscanOffersLinks" style="margin-bottom: 15px; display: none;">
+                    <a id="sonicscanOfferLink1" href="#" target="_blank" style="display: inline-block; margin-right: 15px; color: #667eea; text-decoration: none; font-size: 14px; padding: 8px 12px; border: 1px solid #667eea; border-radius: 6px; transition: all 0.3s;">Explore Offers</a>
+                    <a id="sonicscanOfferLink2" href="#" target="_blank" style="display: inline-block; color: #667eea; text-decoration: none; font-size: 14px; padding: 8px 12px; border: 1px solid #667eea; border-radius: 6px; transition: all 0.3s;">Explore Collection Offers</a>
+                </div>
                 <button id="fetchOffers">Fetch All Offers</button>
                 <div id="fetchOffersStatus"></div>
                 <div style="margin-top: 20px;">
@@ -356,6 +387,30 @@
             {
                 "anonymous": false,
                 "inputs": [
+                    {"indexed": false, "internalType": "uint256", "name": "firstMarketplaceId", "type": "uint256"},
+                    {"components": [
+                        {"internalType": "address", "name": "nft", "type": "address"},
+                        {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                        {"internalType": "uint96", "name": "price", "type": "uint96"},
+                        {"internalType": "uint40", "name": "duration", "type": "uint40"},
+                        {"internalType": "uint40", "name": "amount", "type": "uint40"},
+                        {"internalType": "bool", "name": "isUsingVault", "type": "bool"},
+                        {"internalType": "bool", "name": "isAuction", "type": "bool"},
+                        {"internalType": "bool", "name": "isAntisnipe", "type": "bool"},
+                        {"internalType": "bool", "name": "isFlashAuction", "type": "bool"},
+                        {"internalType": "bool", "name": "isNSFW", "type": "bool"},
+                        {"internalType": "string", "name": "searchKeywords", "type": "string"},
+                        {"internalType": "address", "name": "donationAddress", "type": "address"},
+                        {"internalType": "uint16", "name": "donationPercent", "type": "uint16"}
+                    ], "indexed": false, "internalType": "struct Listing[]", "name": "listings", "type": "tuple[]"},
+                    {"indexed": false, "internalType": "address", "name": "seller", "type": "address"}
+                ],
+                "name": "NewListingBatch",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
                     {"indexed": false, "internalType": "uint256", "name": "offerId", "type": "uint256"},
                     {"indexed": false, "internalType": "uint256", "name": "marketplaceId", "type": "uint256"},
                     {"indexed": false, "internalType": "address", "name": "nft", "type": "address"},
@@ -367,6 +422,20 @@
                     {"indexed": false, "internalType": "string", "name": "searchKeywords", "type": "string"}
                 ],
                 "name": "NewOffer",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": false, "internalType": "uint256", "name": "offerId", "type": "uint256"},
+                    {"indexed": false, "internalType": "address", "name": "nft", "type": "address"},
+                    {"indexed": false, "internalType": "address", "name": "from", "type": "address"},
+                    {"indexed": false, "internalType": "uint40", "name": "quantity", "type": "uint40"},
+                    {"indexed": false, "internalType": "uint96", "name": "price", "type": "uint96"},
+                    {"indexed": false, "internalType": "uint256", "name": "expires", "type": "uint256"},
+                    {"indexed": false, "internalType": "string", "name": "searchKeywords", "type": "string"}
+                ],
+                "name": "NewCollectionOffer",
                 "type": "event"
             }
         ];
@@ -433,12 +502,35 @@
                 document.getElementById('walletStatus').textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
                 document.getElementById('walletStatus').classList.add('connected-address');
                 
+                // Update Sonicscan links with connected address
+                const sonicscanLinksDiv = document.getElementById('sonicscanLinks');
+                const link1 = document.getElementById('sonicscanLink1');
+                const link2 = document.getElementById('sonicscanLink2');
+                
+                const baseUrl = 'https://sonicscan.org/advanced-filter';
+                const marketplaceAddress = MARKETPLACE_ADDRESS;
+                
+                link1.href = `${baseUrl}?fadd=${userAddress}&tadd=${marketplaceAddress}&qt=1&mtd=0xeefb986c%7eAdd+Listing`;
+                link2.href = `${baseUrl}?fadd=${userAddress}&tadd=${marketplaceAddress}&qt=1&mtd=0x54b0fe99%7eAdd+Listing+Batch`;
+                sonicscanLinksDiv.style.display = 'block';
+                
+                // Update Sonicscan offers links with connected address
+                const sonicscanOffersLinksDiv = document.getElementById('sonicscanOffersLinks');
+                const offerLink1 = document.getElementById('sonicscanOfferLink1');
+                const offerLink2 = document.getElementById('sonicscanOfferLink2');
+                
+                offerLink1.href = `${baseUrl}?fadd=${userAddress}&tadd=${marketplaceAddress}&qt=1&mtd=0xb8f22d88%7eMake+Offer+Single`;
+                offerLink2.href = `${baseUrl}?fadd=${userAddress}&tadd=${marketplaceAddress}&qt=1&mtd=0xf7433035%7eMake+Collection+Offer`;
+                sonicscanOffersLinksDiv.style.display = 'block';
+                
                 // Listen for account changes
                 window.ethereum.on('accountsChanged', (accounts) => {
                     if (accounts.length === 0) {
                         userAddress = null;
                         document.getElementById('walletStatus').textContent = 'Not connected';
                         document.getElementById('walletStatus').classList.remove('connected-address');
+                        document.getElementById('sonicscanLinks').style.display = 'none';
+                        document.getElementById('sonicscanOffersLinks').style.display = 'none';
                     } else {
                         location.reload();
                     }
@@ -563,6 +655,8 @@
             
             // NewListing event topic for decoding logs
             const topic0 = '0x217bd5b40e04ee284d8ebf246fe31b6cf1b5aa0fc343ce0ef5325ee90ef40bea';
+            // NewListingBatch event topic
+            const newListingBatchTopic = '0x0cdb8311c2de3f81939aa0eecb022aff27d218b8528dcacc2a6c89f11002ff54';
             
             // Determine which API endpoint to use
             let apiBaseUrl = 'https://api.sonicscan.org/api';
@@ -651,16 +745,17 @@
                         continue;
                     }
                     
-                    // Check if it's an addListing transaction (check method ID)
+                    // Check method ID for logging (but don't filter - check all marketplace transactions)
                     const methodId = tx.input.substring(0, 10).toLowerCase();
                     const isAddListing = methodId === addListingMethodId || 
                                          methodId === addListingBatchMethodId;
                     
-                    if (!isAddListing) {
-                        continue;
+                    if (isAddListing) {
+                        console.log(`[Fetch ${page}] Found addListing tx: ${tx.hash} (methodId: ${methodId})`);
+                    } else {
+                        // Still check this transaction - it might have listing events even if method ID doesn't match
+                        console.log(`[Fetch ${page}] Checking marketplace tx: ${tx.hash} (methodId: ${methodId})`);
                     }
-                    
-                    console.log(`[Fetch ${page}] Found addListing tx: ${tx.hash}`);
                     
                     // Get the transaction receipt to extract marketplaceId from logs
                     await delay(200); // Small delay to avoid rate limit
@@ -706,6 +801,12 @@
                         const iface = new ethers.utils.Interface(MARKETPLACE_ABI);
                         
                         for (const log of receiptData.result.logs) {
+                            // Log all event topics for debugging
+                            if (log.topics && log.topics[0]) {
+                                const topic0Lower = log.topics[0].toLowerCase();
+                                console.log(`[Log] ${tx.hash} - Topic0: ${topic0Lower}`);
+                            }
+                            
                             // Check if this is a NewListing event
                             if (log.topics && log.topics[0] && log.topics[0].toLowerCase() === topic0.toLowerCase()) {
                                 try {
@@ -806,6 +907,104 @@
                                     console.warn('[Decode] Failed to decode log:', e);
                                 }
                             }
+                            
+                            // Check if this is a NewListingBatch event
+                            if (log.topics && log.topics[0] && log.topics[0].toLowerCase() === newListingBatchTopic.toLowerCase()) {
+                                console.log(`[Match] Found NewListingBatch event in tx ${tx.hash}`);
+                                try {
+                                    const decoded = iface.decodeEventLog('NewListingBatch', log.data, log.topics);
+                                    const firstMarketplaceId = parseInt(decoded.firstMarketplaceId.toString());
+                                    
+                                    // Verify seller matches
+                                    if (decoded.seller.toLowerCase() !== sellerAddress.toLowerCase()) {
+                                        console.log(`[Skip] NewListingBatch - not from connected seller`);
+                                        continue;
+                                    }
+                                    
+                                    const blockNumber = parseInt(tx.blockNumber);
+                                    
+                                    // Get timestamp - same logic as single listing
+                                    let timestamp = null;
+                                    if (tx.timeStamp !== undefined && tx.timeStamp !== null) {
+                                        timestamp = parseInt(tx.timeStamp);
+                                    } else if (tx.timestamp !== undefined && tx.timestamp !== null) {
+                                        timestamp = parseInt(tx.timestamp);
+                                    } else {
+                                        // Fallback: fetch block timestamp
+                                        try {
+                                            await delay(100);
+                                            let blockUrl;
+                                            if (useEtherscanV2) {
+                                                blockUrl = `${apiBaseUrl}?chainid=${SONIC_CHAIN_ID}&module=proxy&action=eth_getBlockByNumber&tag=0x${blockNumber.toString(16)}&boolean=true&apikey=${apiKey}`;
+                                            } else {
+                                                blockUrl = `${apiBaseUrl}?module=proxy&action=eth_getBlockByNumber&tag=0x${blockNumber.toString(16)}&boolean=true${apiKey ? '&apikey=' + apiKey : ''}`;
+                                            }
+                                            const blockResponse = await fetch(blockUrl);
+                                            const blockData = await blockResponse.json();
+                                            if (blockData.result && blockData.result.timestamp) {
+                                                timestamp = parseInt(blockData.result.timestamp, 16);
+                                            }
+                                        } catch (e) {
+                                            console.error(`[DEBUG] ✗ Failed to fetch block timestamp:`, e);
+                                        }
+                                    }
+                                    
+                                    // Process each listing in the batch
+                                    const listingsArray = decoded.listings;
+                                    console.log(`[Batch] Found ${listingsArray.length} listings in batch, starting from marketplaceId ${firstMarketplaceId}`);
+                                    
+                                    for (let i = 0; i < listingsArray.length; i++) {
+                                        const listing = listingsArray[i];
+                                        const marketplaceId = (firstMarketplaceId + i).toString();
+                                        const duration = parseInt(listing.duration.toString());
+                                        
+                                        // Avoid duplicates
+                                        if (!allListings.find(l => l.id === marketplaceId)) {
+                                            const listingData = {
+                                                id: marketplaceId,
+                                                blockNumber: blockNumber,
+                                                transactionHash: tx.hash,
+                                                seller: decoded.seller,
+                                                duration: duration,
+                                                timestamp: timestamp
+                                            };
+                                            allListings.push(listingData);
+                                            pageListings++;
+                                            
+                                            const currentTime = Math.floor(Date.now() / 1000);
+                                            const expirationTime = timestamp ? timestamp + duration : null;
+                                            const isExpired = timestamp ? (currentTime > expirationTime) : 'unknown';
+                                            
+                                            // Detailed logging
+                                            console.log(`[FOUND] Batch Listing ${marketplaceId} (${i + 1}/${listingsArray.length}):`);
+                                            console.log(`  - Duration: ${duration}s (${Math.floor(duration / 86400)} days)`);
+                                            console.log(`  - Timestamp: ${timestamp || 'MISSING'}`);
+                                            if (timestamp) {
+                                                console.log(`  - Created: ${new Date(timestamp * 1000).toISOString()}`);
+                                                console.log(`  - Expires: ${new Date(expirationTime * 1000).toISOString()}`);
+                                                console.log(`  - Current: ${new Date(currentTime * 1000).toISOString()}`);
+                                                console.log(`  - Is Expired: ${isExpired}`);
+                                                console.log(`  - Time Remaining: ${Math.floor((expirationTime - currentTime) / 86400)} days`);
+                                            } else {
+                                                console.log(`  - ⚠️  Cannot determine expiration (no timestamp)`);
+                                            }
+                                            
+                                            // Update display in real-time
+                                            displayListings();
+                                            
+                                            // Update status
+                                            const statusDiv = document.getElementById('fetchStatus');
+                                            if (statusDiv) {
+                                                statusDiv.innerHTML = `<div class="status info">Found ${allListings.length} listings so far...</div>`;
+                                            }
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('[Decode] Failed to decode NewListingBatch log:', e);
+                                    console.error('[Decode] Log data:', log.data);
+                                    console.error('[Decode] Log topics:', log.topics);
+                                }
+                            }
                         }
                     }
                 }
@@ -833,6 +1032,8 @@
             
             // NewOffer event topic
             const newOfferTopic = '0x51ddc3ce4e6137c19b8b4521871ae05623a9c72df697faf2fdfd1b1a639170b3';
+            // NewCollectionOffer event topic
+            const newCollectionOfferTopic = '0x2f733bc538846de02f3e4be211841f934a46b78240dc1377445df86b187f7e27';
             
             // Determine which API endpoint to use
             let apiBaseUrl = 'https://api.sonicscan.org/api';
@@ -1026,6 +1227,61 @@
                                     console.error('[Decode] Log topics:', log.topics);
                                 }
                             }
+                            
+                            // Check if this is a NewCollectionOffer event
+                            if (log.topics && log.topics[0] && log.topics[0].toLowerCase() === newCollectionOfferTopic.toLowerCase()) {
+                                console.log(`[Match] Found NewCollectionOffer event in tx ${tx.hash}`);
+                                try {
+                                    const decoded = iface.decodeEventLog('NewCollectionOffer', log.data, log.topics);
+                                    const offerId = decoded.offerId.toString();
+                                    
+                                    console.log(`[Decoded] Collection Offer ${offerId} from: ${decoded.from}, expected: ${userAddress}`);
+                                    
+                                    // Verify offer is from this user
+                                    if (decoded.from.toLowerCase() !== userAddress.toLowerCase()) {
+                                        console.log(`[Skip] Collection Offer ${offerId} - not from connected user`);
+                                        continue;
+                                    }
+                                    
+                                    const expires = parseInt(decoded.expires.toString());
+                                    
+                                    // Avoid duplicates
+                                    if (!allOffers.find(o => o.id === offerId)) {
+                                        const offerData = {
+                                            id: offerId,
+                                            transactionHash: tx.hash,
+                                            from: decoded.from,
+                                            expires: expires
+                                        };
+                                        allOffers.push(offerData);
+                                        pageOffers++;
+                                        
+                                        const currentTime = Math.floor(Date.now() / 1000);
+                                        const isExpired = currentTime > expires;
+                                        
+                                        // Detailed logging
+                                        console.log(`[FOUND] Collection Offer ${offerId}:`);
+                                        console.log(`  - NFT: ${decoded.nft}`);
+                                        console.log(`  - Quantity: ${decoded.quantity.toString()}`);
+                                        console.log(`  - Expires: ${expires} (${new Date(expires * 1000).toISOString()})`);
+                                        console.log(`  - Current: ${currentTime} (${new Date(currentTime * 1000).toISOString()})`);
+                                        console.log(`  - Is Expired: ${isExpired}`);
+                                        
+                                        // Update display in real-time
+                                        displayOffers();
+                                        
+                                        // Update status
+                                        const statusDiv = document.getElementById('fetchOffersStatus');
+                                        if (statusDiv) {
+                                            statusDiv.innerHTML = `<div class="status info">Found ${allOffers.length} offers so far...</div>`;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('[Decode] Failed to decode NewCollectionOffer log from tx', tx.hash, ':', e);
+                                    console.error('[Decode] Log data:', log.data);
+                                    console.error('[Decode] Log topics:', log.topics);
+                                }
+                            }
                         }
                     }
                 }
@@ -1187,6 +1443,21 @@
                 const item = document.createElement('div');
                 item.className = 'listing-item';
                 
+                // Add date display
+                const dateDisplay = document.createElement('div');
+                dateDisplay.className = 'date-display';
+                if (listing.timestamp) {
+                    const date = new Date(parseInt(listing.timestamp) * 1000);
+                    dateDisplay.textContent = date.toLocaleDateString();
+                } else {
+                    dateDisplay.textContent = 'Date unknown';
+                }
+                item.appendChild(dateDisplay);
+                
+                // Controls container
+                const controls = document.createElement('div');
+                controls.className = 'controls';
+                
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = listing.id;
@@ -1197,8 +1468,9 @@
                 button.textContent = `Cancel ID: ${listing.id}`;
                 button.onclick = () => cancelListing(listing.id);
                 
-                item.appendChild(checkbox);
-                item.appendChild(button);
+                controls.appendChild(checkbox);
+                controls.appendChild(button);
+                item.appendChild(controls);
                 container.appendChild(item);
             });
             
@@ -1310,6 +1582,21 @@
                 const item = document.createElement('div');
                 item.className = 'listing-item';
                 
+                // Add date display
+                const dateDisplay = document.createElement('div');
+                dateDisplay.className = 'date-display';
+                if (offer.expires) {
+                    const date = new Date(parseInt(offer.expires) * 1000);
+                    dateDisplay.textContent = `Expires: ${date.toLocaleDateString()}`;
+                } else {
+                    dateDisplay.textContent = 'Date unknown';
+                }
+                item.appendChild(dateDisplay);
+                
+                // Controls container
+                const controls = document.createElement('div');
+                controls.className = 'controls';
+                
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = offer.id;
@@ -1320,8 +1607,9 @@
                 button.textContent = `Cancel ID: ${offer.id}`;
                 button.onclick = () => cancelOffer(offer.id);
                 
-                item.appendChild(checkbox);
-                item.appendChild(button);
+                controls.appendChild(checkbox);
+                controls.appendChild(button);
+                item.appendChild(controls);
                 container.appendChild(item);
             });
             
