@@ -351,6 +351,7 @@
         const MARKETPLACE_ADDRESS = '0x0c558365eeff4b057fdbed91bc3650e1a00018b4';
         const SONIC_CHAIN_ID = 146;
         const SONIC_RPC = 'https://rpc.soniclabs.com';
+        const MIN_BLOCK_NUMBER = 1173921; // First listing ever made on the marketplace contract globally
         
         // Contract ABI (only functions we need)
         const MARKETPLACE_ABI = [
@@ -470,8 +471,137 @@
         let allOffers = [];
         let currentTab = 'listings';
         
+        // Update button text based on connection state
+        function updateConnectButton() {
+            const connectBtn = document.getElementById('connectWallet');
+            if (userAddress) {
+                connectBtn.textContent = 'Disconnect';
+            } else {
+                connectBtn.textContent = 'Connect Wallet';
+            }
+        }
+        
+        // Disconnect wallet
+        function disconnectWallet() {
+            userAddress = null;
+            provider = null;
+            signer = null;
+            contract = null;
+            
+            document.getElementById('walletStatus').textContent = 'Not connected';
+            document.getElementById('walletStatus').classList.remove('connected-address');
+            
+            // Hide Sonicscan links
+            document.getElementById('sonicscanLinks').classList.add('hidden');
+            document.getElementById('sonicscanOffersLinks').classList.add('hidden');
+            
+            updateConnectButton();
+        }
+        
+        // Check if on Sonic network and switch if not
+        async function ensureSonicNetwork() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('Please install MetaMask or another Web3 wallet!');
+                return false;
+            }
+            
+            try {
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const chainIdDecimal = parseInt(chainId, 16);
+                
+                if (chainIdDecimal !== SONIC_CHAIN_ID) {
+                    const userWantsSwitch = confirm(
+                        `You are not on the Sonic network (current chain ID: ${chainIdDecimal}). ` +
+                        `Would you like to switch to Sonic network (chain ID: ${SONIC_CHAIN_ID})?`
+                    );
+                    
+                    if (!userWantsSwitch) {
+                        alert('Transaction cancelled. Please switch to Sonic network to proceed.');
+                        return false;
+                    }
+                    
+                    try {
+                        // Try to switch to Sonic network
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: `0x${SONIC_CHAIN_ID.toString(16)}` }],
+                        });
+                        
+                        // Wait a moment for the switch to complete
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // Verify we're on the correct network now
+                        const newChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                        const newChainIdDecimal = parseInt(newChainId, 16);
+                        
+                        if (newChainIdDecimal !== SONIC_CHAIN_ID) {
+                            alert('Failed to switch to Sonic network. Please switch manually and try again.');
+                            return false;
+                        }
+                        
+                        // Update provider and signer after network switch
+                        provider = new ethers.providers.Web3Provider(window.ethereum);
+                        signer = provider.getSigner();
+                        contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
+                        
+                        return true;
+                    } catch (switchError) {
+                        // If network doesn't exist, add it
+                        if (switchError.code === 4902) {
+                            try {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: `0x${SONIC_CHAIN_ID.toString(16)}`,
+                                        chainName: 'Sonic',
+                                        nativeCurrency: {
+                                            name: 'Sonic',
+                                            symbol: 'S',
+                                            decimals: 18,
+                                        },
+                                        rpcUrls: [SONIC_RPC],
+                                        blockExplorerUrls: ['https://sonicscan.org/'],
+                                    }],
+                                });
+                                
+                                // Wait a moment for the network to be added and switched
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                
+                                // Update provider and signer after network switch
+                                provider = new ethers.providers.Web3Provider(window.ethereum);
+                                signer = provider.getSigner();
+                                contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
+                                
+                                return true;
+                            } catch (addError) {
+                                console.error('Error adding Sonic network:', addError);
+                                alert('Failed to add Sonic network: ' + addError.message);
+                                return false;
+                            }
+                        } else {
+                            console.error('Error switching to Sonic network:', switchError);
+                            alert('Failed to switch to Sonic network: ' + switchError.message);
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error checking network:', error);
+                alert('Error checking network: ' + error.message);
+                return false;
+            }
+        }
+        
         // Connect wallet
         document.getElementById('connectWallet').addEventListener('click', async () => {
+            // If already connected, disconnect
+            if (userAddress) {
+                disconnectWallet();
+                return;
+            }
+            
             if (typeof window.ethereum === 'undefined') {
                 alert('Please install MetaMask or another Web3 wallet!');
                 return;
@@ -545,16 +675,12 @@
                 offerLink2.href = `${baseUrl}?fadd=${userAddress}&tadd=${marketplaceAddress}&qt=1&mtd=0xf7433035%7eMake+Collection+Offer`;
                 sonicscanOffersLinksDiv.classList.remove('hidden');
                 
+                updateConnectButton();
+                
                 // Listen for account changes
                 window.ethereum.on('accountsChanged', (accounts) => {
                     if (accounts.length === 0) {
-                        userAddress = null;
-                        document.getElementById('walletStatus').textContent = 'Not connected';
-                        document.getElementById('walletStatus').classList.remove('connected-address');
-                        
-                        // Hide Sonicscan links
-                        document.getElementById('sonicscanLinks').classList.add('hidden');
-                        document.getElementById('sonicscanOffersLinks').classList.add('hidden');
+                        disconnectWallet();
                     } else {
                         location.reload();
                     }
@@ -714,6 +840,14 @@
             let hasMore = true;
             
             while (hasMore) {
+                // Safety check: API limit is PageNo x Offset <= 10000
+                // With offset = 100, max page is 100
+                if (page * offset > 10000) {
+                    console.log(`[Fetch ${page}] Page ${page} x offset ${offset} would exceed API limit (10000), stopping`);
+                    hasMore = false;
+                    break;
+                }
+                
                 // Rate limiting
                 if (page > 1) {
                     await delay(400);
@@ -757,8 +891,16 @@
                 // 2. Must have addListing method signature
                 // 3. Must be successful (isError === '0')
                 let pageListings = 0;
+                let reachedMinBlock = false;
                 
                 for (const tx of data.result) {
+                    // Check if we've reached the minimum block number
+                    const txBlockNumber = parseInt(tx.blockNumber);
+                    if (txBlockNumber && txBlockNumber <= MIN_BLOCK_NUMBER) {
+                        console.log(`[Fetch ${page}] Reached minimum block ${MIN_BLOCK_NUMBER} at block ${txBlockNumber}`);
+                        reachedMinBlock = true;
+                        // Still process this transaction if it's relevant, but stop after this page
+                    }
                     // Check if transaction is to the marketplace contract
                     if (!tx.to || tx.to.toLowerCase() !== MARKETPLACE_ADDRESS.toLowerCase()) {
                         continue;
@@ -1038,8 +1180,11 @@
                 // Sort by ID (latest first)
                 allListings.sort((a, b) => parseInt(b.id) - parseInt(a.id));
                 
-                // Check if we've reached the end
-                if (data.result.length < offset) {
+                // Check if we've reached the end or minimum block
+                if (reachedMinBlock) {
+                    console.log(`[Fetch ${page}] Reached minimum block ${MIN_BLOCK_NUMBER}, stopping pagination`);
+                    hasMore = false;
+                } else if (data.result.length < offset) {
                     console.log(`[Fetch ${page}] Reached end of transactions`);
                     hasMore = false;
                 } else {
@@ -1091,6 +1236,14 @@
             let hasMore = true;
             
             while (hasMore) {
+                // Safety check: API limit is PageNo x Offset <= 10000
+                // With offset = 100, max page is 100
+                if (page * offset > 10000) {
+                    console.log(`[Fetch ${page}] Page ${page} x offset ${offset} would exceed API limit (10000), stopping`);
+                    hasMore = false;
+                    break;
+                }
+                
                 // Rate limiting
                 if (page > 1) {
                     await delay(400);
@@ -1131,8 +1284,17 @@
                 
                 // Filter transactions for makeOffer calls
                 let pageOffers = 0;
+                let reachedMinBlock = false;
                 
                 for (const tx of data.result) {
+                    // Check if we've reached the minimum block number
+                    const txBlockNumber = parseInt(tx.blockNumber);
+                    if (txBlockNumber && txBlockNumber <= MIN_BLOCK_NUMBER) {
+                        console.log(`[Fetch ${page}] Reached minimum block ${MIN_BLOCK_NUMBER} at block ${txBlockNumber}`);
+                        reachedMinBlock = true;
+                        // Still process this transaction if it's relevant, but stop after this page
+                    }
+                    
                     // Check if transaction is to the marketplace contract
                     if (!tx.to || tx.to.toLowerCase() !== MARKETPLACE_ADDRESS.toLowerCase()) {
                         continue;
@@ -1315,8 +1477,11 @@
                 // Sort by ID (latest first)
                 allOffers.sort((a, b) => parseInt(b.id) - parseInt(a.id));
                 
-                // Check if we've reached the end
-                if (data.result.length < offset) {
+                // Check if we've reached the end or minimum block
+                if (reachedMinBlock) {
+                    console.log(`[Fetch ${page}] Reached minimum block ${MIN_BLOCK_NUMBER}, stopping pagination`);
+                    hasMore = false;
+                } else if (data.result.length < offset) {
                     console.log(`[Fetch ${page}] Reached end of transactions`);
                     hasMore = false;
                 } else {
@@ -1691,6 +1856,12 @@
                 return;
             }
             
+            // Check and switch to Sonic network if needed
+            const isOnSonic = await ensureSonicNetwork();
+            if (!isOnSonic) {
+                return;
+            }
+            
             if (!confirm(`Are you sure you want to cancel listing ${marketplaceId}?`)) {
                 return;
             }
@@ -1719,6 +1890,12 @@
         document.getElementById('cancelSelected').addEventListener('click', async () => {
             if (!contract || !userAddress) {
                 alert('Please connect your wallet first');
+                return;
+            }
+            
+            // Check and switch to Sonic network if needed
+            const isOnSonic = await ensureSonicNetwork();
+            if (!isOnSonic) {
                 return;
             }
             
@@ -1766,6 +1943,12 @@
                 return;
             }
             
+            // Check and switch to Sonic network if needed
+            const isOnSonic = await ensureSonicNetwork();
+            if (!isOnSonic) {
+                return;
+            }
+            
             if (!confirm(`Are you sure you want to cancel offer ${offerId}?`)) {
                 return;
             }
@@ -1794,6 +1977,12 @@
         document.getElementById('cancelSelectedOffers').addEventListener('click', async () => {
             if (!contract || !userAddress) {
                 alert('Please connect your wallet first');
+                return;
+            }
+            
+            // Check and switch to Sonic network if needed
+            const isOnSonic = await ensureSonicNetwork();
+            if (!isOnSonic) {
                 return;
             }
             
