@@ -1439,7 +1439,7 @@
             summary.style.marginBottom = '15px';
             summary.innerHTML = `
                 <strong>Total: ${allListings.length} listings</strong> | 
-                Active: ${activeListings.length} | 
+                Non-expired: ${activeListings.length} | 
                 Expired: ${expiredCount}
             `;
             container.appendChild(summary);
@@ -1582,7 +1582,7 @@
             summary.style.marginBottom = '15px';
             summary.innerHTML = `
                 <strong>Total: ${allOffers.length} offers</strong> | 
-                Active: ${activeOffers.length} | 
+                Non-expired: ${activeOffers.length} | 
                 Expired: ${expiredCount}
             `;
             container.appendChild(summary);
